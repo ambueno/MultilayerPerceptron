@@ -1,5 +1,10 @@
 package neural
 
+import (
+	log "github.com/sirupsen/logrus"
+	_ "os"
+)
+
 type NeuralLayer struct {
 	// NeuronUnits in layer
 	NeuronUnits []NeuronUnit
@@ -17,5 +22,11 @@ func PrepareLayer(numberOfNeuronsNeuralLayer int,
 	for i := 0; i < numberOfNeuronsNeuralLayer; i++ {
 		RandomNeuronInit(&layer.NeuronUnits[i], numberOfNeuronsPreviousNeuralLayer)
 	}
+	log.WithFields(log.Fields{
+		"level":               "info",
+		"msg":                 "multilayer perceptron init completed",
+		"neurons":             len(layer.NeuronUnits),
+		"lengthPreviousLayer": layer.Length,
+	}).Info("Complete NeuralLayer init.")
 	return
 }

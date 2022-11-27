@@ -1,6 +1,9 @@
 package neural
 
-import log "github.com/sirupsen/logrus"
+import (
+	log "github.com/sirupsen/logrus"
+	"math"
+)
 
 type MultiLayerNetwork struct {
 	// layer of neurons
@@ -42,6 +45,9 @@ func PrepareMLPNet(layer []int, learningRate float64, tf transferFunction, tfd t
 	return
 }
 
+// Execute a multi layer Perceptron neural network.
+// [multiLayerPerceptron:MultiLayerNetwork] multilayer perceptron network pointer, [input:Pattern] input value
+// It returns output values by network
 func Execute(multiLayerPerceptron *MultiLayerNetwork, input *Pattern, options ...int) (output []float64) {
 	output = make([]float64, multiLayerPerceptron.NeuralLayers[len(multiLayerPerceptron.NeuralLayers)-1].Length)
 
@@ -82,4 +88,41 @@ func Execute(multiLayerPerceptron *MultiLayerNetwork, input *Pattern, options ..
 	}
 
 	return output
+}
+
+func BackPropagate(multiLayerPerceptron *MultiLayerNetwork, input *Pattern, expectedOutput []float64, options ...int) (deltaError float64) {
+	var newExpectedOutput []float64
+	if len(options) == 1 {
+		newExpectedOutput = Execute(multiLayerPerceptron, input, options[0])
+	} else {
+		newExpectedOutput = Execute(multiLayerPerceptron, input, options[0])
+	}
+
+	errorValue := 0.0
+	for i := 0; i < multiLayerPerceptron.NeuralLayers[len(multiLayerPerceptron.NeuralLayers)-1].Length; i++ {
+		errorValue = expectedOutput[i] - newExpectedOutput[i]
+		multiLayerPerceptron.NeuralLayers[len(multiLayerPerceptron.NeuralLayers)-1].NeuronUnits[i].Delta = errorValue * multiLayerPerceptron.TransferFunctionDerivative(newExpectedOutput[i])
+	}
+
+	// todo: reduce time complexity
+	for i := len(multiLayerPerceptron.NeuralLayers) - 2; i >= 0; i-- {
+		for j := 0; j < multiLayerPerceptron.NeuralLayers[i].Length; j++ {
+			errorValue = 0.0
+			for k := 0; k < multiLayerPerceptron.NeuralLayers[i+1].Length; k++ {
+				errorValue += multiLayerPerceptron.NeuralLayers[i+1].NeuronUnits[k].Delta * multiLayerPerceptron.NeuralLayers[i+1].NeuronUnits[k].Weights[j]
+			}
+			multiLayerPerceptron.NeuralLayers[i].NeuronUnits[j].Delta = errorValue * multiLayerPerceptron.TransferFunctionDerivative(multiLayerPerceptron.NeuralLayers[i].NeuronUnits[j].Value)
+		}
+		for j := 0; j < multiLayerPerceptron.NeuralLayers[i+1].Length; j++ {
+			for k := 0; k < multiLayerPerceptron.NeuralLayers[i].Length; k++ {
+				multiLayerPerceptron.NeuralLayers[i+1].NeuronUnits[j].Weights[k] += multiLayerPerceptron.LearningRate * multiLayerPerceptron.NeuralLayers[i+1].NeuronUnits[j].Delta * multiLayerPerceptron.NeuralLayers[i].NeuronUnits[k].Value
+			}
+			multiLayerPerceptron.NeuralLayers[i+1].NeuronUnits[j].Bias += multiLayerPerceptron.LearningRate * multiLayerPerceptron.NeuralLayers[i+1].NeuronUnits[j].Delta
+		}
+	}
+	for i := 0; i < len(expectedOutput); i++ {
+		deltaError += math.Abs(newExpectedOutput[i] - expectedOutput[i])
+	}
+	deltaError = deltaError / float64(len(expectedOutput))
+	return
 }
